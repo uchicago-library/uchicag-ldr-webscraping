@@ -1,15 +1,6 @@
-import re
-import requests
 import argparse
-from bs4 import BeautifulSoup
-import urllib.parse as urlparse
-from urllib.parse import urljoin
-from os import listdir,stat
-from os.path import basename,join,exists,isdir,isfile
-from time import sleep,strftime,localtime,mktime
-from hashlib import sha256
+from os.path import exists,isdir,join,basename
 from logging import DEBUG, FileHandler, Formatter, getLogger, INFO, StreamHandler
-from datetime import datetime
 
 from uchicagoldr.bash_cmd import BashCommand
 
@@ -51,7 +42,7 @@ def main():
     logger.addHandler(fh)
 
     #Write the date we're doing all this to the log, so we can check it later.
-    logger.info("Run begins: "+strftime('%Y-%m-%dT%H:%M:%S'))
+    logger.info("Run begins.")
     #Download the hub page which contains the links. If we can't get that we can't go anywhere, so exit.
     page=getPage(args.url)
     if page[0] != True:
@@ -147,7 +138,7 @@ def main():
         Alert("Accession me!")
 
     #The run is complete (and seems to have completed succesfully, write as much to the log.
-    logger.info("Run complete: "+strftime('%Y-%m-%dT%H:%M:%S'))
+    logger.info("Run complete.")
 
 if __name__ == '__main__':
     main()

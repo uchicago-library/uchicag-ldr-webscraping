@@ -21,12 +21,13 @@ def countFiles(path,num=0):
     return num
 
 def dirSize(path,size=0):
-    from os import listdir,isfile,isdir,stat
+    from os import listdir,stat
+    from os.path import isfile,isdir,join
     for content in listdir(path):
-        if isfile(content):
+        if isfile(join(path,content)):
             size+=stat(join(path,content)).st_size
     for content in listdir(path):
-        if isdir(content):
+        if isdir(join(path,content)):
             size+=dirSize(join(path,content))
     return size
 

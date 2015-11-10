@@ -9,24 +9,26 @@ def determineAlert(args):
     from datetime import datetime
 
     from ldrwebscraping.handy import countFiles
+    from ldrwebscraping.handy import dirSize
 
     if args.max_time != None:
         lineList=[]
-        match=re_compile('^\[INFO\] [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}  \\= Run complete: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
+        match=re_compile('^\[INFO\] [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}  \\= Run complete.$')
         if exists(args.out_path+"/log.txt"):
             for line in open(args.out_path+"/log.txt","r"):
                 lineList.append(line)
             lineList=reversed(lineList)
+            lastRunLine=""
             for line in lineList:
                     if search(match,line):
                         lastRunLine=line
-                        break
-            lastRunTimeString=lastRunLine.split()[-1]
-            lastRunTime=datetime.strptime(lastRunTimeString,'%Y-%m-%dT%H:%M:%S')
-            now = datetime.strptime(strftime('%Y-%m-%dT%H:%M:%S'),'%Y-%m-%dT%H:%M:%S') 
-            delta=now-lastRunTime
-            if delta.seconds > args.max_time:
-                return True
+            if lastRunLine != "":
+                lastRunTimeString=lastRunLine.split()[1]
+                lastRunTime=datetime.strptime(lastRunTimeString,'%Y-%m-%dT%H:%M:%S')
+                now = datetime.strptime(strftime('%Y-%m-%dT%H:%M:%S'),'%Y-%m-%dT%H:%M:%S') 
+                delta=now-lastRunTime
+                if delta.seconds > args.max_time:
+                    return True
     
     if args.max_files != None:
         numOfFiles=countFiles(args.out_path)-2

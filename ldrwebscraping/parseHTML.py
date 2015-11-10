@@ -12,4 +12,4 @@ def getLinksByExtension(page,extension):
                 links.append(href)
         except KeyError:
             pass
-    return links
+    return set(links)

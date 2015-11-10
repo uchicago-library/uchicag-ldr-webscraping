@@ -81,6 +81,18 @@ def main():
         if dl[0] == True:
             filePath=dl[1]
             fileHash=hash(dl[1])
+        
+            if dl[2] != False:
+                logger.info('Download function appended an id ('+dl[2]+') in order not to clobber something in the temp directory. Lets check to see if we already have it.')
+                if fileHash in [x[1] for x in hashPaths]:
+                    logger.info('We do, deleting')
+                    rmArgs=['rm',filePath]
+                    rmCommand=BashCommand(rmArgs)
+                    assert(rmCommand.run_command()[0])
+                    logger.debug(rmCommand.get_data()[1])
+                    continue
+                else:
+                    logger.info('We don\'t, keeping it.')
         else:
             filePath=None
             fileHash=None

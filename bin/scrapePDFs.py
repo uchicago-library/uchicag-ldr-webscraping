@@ -13,123 +13,13 @@ from datetime import datetime
 
 from uchicagoldr.bash_cmd import BashCommand
 
-#this is a stand in function
-def alert(message):
-    print(message)
+from ldrwebscraping.alerts import Alert
+from ldrwebscraping.parseHTML import getLinksByExtension
+from ldrwebscraping.download import getPage,downloadFile
+from ldrwebscraping.link import isAbsolute,convertToAbs
+from ldrwebscraping.administration import readFilesSeen
+from ldrwebscraping.handy import hash,countFiles,dirSize
 
-def getPage(url,iteration=0):
-    iteration+=1
-    logger.debug('Attempting connection to '+url)
-    logger.debug('Connection attempt: '+str(iteration))
-    request=requests.get(url,stream=True)
-    if request.status_code == 200:
-        logger.debug('Connection to '+url+' successful. HTTP Status Code 200.')
-        return (True,request)
-    else:
-        if iteration < 6:
-            logger.debug('Non-200 status code received. Retrying after 10 seconds.')
-            sleep(10)
-            getPage(url,iteration=iteration)
-        logger.debug('Non-200 status code received and max retries reached.')
-        logger.debug('Final status code returned: '+str(request.status_code))
-        return (False,request)
-
-def isAbsolute(url):
-    return bool(urlparse.urlparse(url).netloc)
-
-def convertToAbs(url,links):
-    convdLinks=[]
-    for link in links:
-        if not isAbsolute(link):
-            logger.debug("Relative link detected. Attempting Conversion: "+link)
-            abslink=urljoin(url,link)
-            logger.debug("Conversion result: "+abslink)
-            convdLinks.append(abslink)
-        else:
-            logger.debug(link+" appears to be an absolute link.")
-            convdLinks.append(link)
-    return convdLinks
-
-def getPdfLinks(page):
-    logger.info('Attempting to mine PDF links out of retrieved page.')
-    match=re.compile('\.pdf$')
-    pdfLinks=[]
-    pageText=page[1].text
-    pageSoup=BeautifulSoup(pageText,'html.parser')
-    for link in pageSoup.find_all('a'):
-        try:
-            href=link['href']
-            if re.search(match,href):
-                pdfLinks.append(href)
-        except KeyError:
-            pass
-    logger.info('Retrieved '+str(len(pdfLinks))+' links.')
-    for link in pdfLinks:
-        logger.debug(link)
-    return pdfLinks
-
-def downloadPDF(link,outPath,suffix=""):
-    filename=basename(link)
-    logger.debug("Attempting download of: "+link)
-    page=getPage(link)
-    if page[0] != True:
-        logger.warn("Bad HTTP Response for: "+link)
-        return (False,None)
-    else:
-        logger.debug('Attempting to write file to: '+outPath+"/"+filename+suffix)
-        with open(outPath+"/"+filename+suffix,'wb') as f:
-            for chunk in page[1].iter_content(1024):
-                f.write(chunk)
-                return (True,outPath+"/"+filename+suffix)
-        logger.debug('File written.')
-
-def hash(filepath,blocksize=65536):
-    hasher=sha256()
-    logger.debug('Attempting to open file in binary mode for hashing: '+filepath)
-    fileContents=open(filepath,'rb')
-    logger.debug('Hashing')
-    buf=fileContents.read(blocksize)
-    while len(buf)>0:
-        hasher.update(buf)
-        buf=fileContents.read(blocksize)
-    logger.debug('Hash: '+hasher.hexdigest())
-    return hasher.hexdigest()
-    
-def readFilesSeen(filepath):
-    hashes=[]
-    logger.debug('Opening '+filepath+' in order to find previously seen hashes.')
-    f=open(filepath,'r')
-    for line in f.readlines():
-        line=line.rstrip('\n')
-        if len(line) > 0:
-            fileHash=line.split("\t")[-1]
-            hashes.append(fileHash)
-    f.close()
-    for entry in hashes:
-        logger.debug('Seen hash: '+entry)
-    return hashes
-
-def countFiles(path,num=0):
-    logger.debug('Counting files...')
-    for content in listdir(path):
-        if isfile(content):
-            num+=1
-    for content in listdir(path):
-        logger.debug('Encountered nested directory, recursing')
-        if isdir(content):
-            num+=countFiles(join(path,content))
-    logger.debug('Encountered '+str(num)+' files.')
-    return num
-
-def dirSize(path,size=0):
-    logger.debug('Computing size of '+path)
-    for content in listdir(path):
-        if isfile(content):
-            size+=stat(join(path,content)).st_size
-    for content in listdir(path):
-        if isdir(content):
-            size+=dirSize(join(path,content))
-    return size
 
 def main():
     parser=argparse.ArgumentParser(description='A program for watching pages containing PDF links and logging when new content is added in order to prepare it for accessioning into the LDR')
@@ -173,7 +63,7 @@ def main():
         logger.info('Connection established with '+args.url)
 
     #Pull out the links and resolve them to what should *hopefully* be their absolute web-path
-    links=getPdfLinks(page)
+    links=getLinksByExtension(page,'pdf')
     links=convertToAbs(args.url,links)
 
     #Make a tmp directory to download everything this go around
@@ -187,7 +77,7 @@ def main():
     hashPaths=[]
     for link in links:
         logger.info('Downloading '+link+' to '+join(args.out_path,'tmp')+' and hashing.')
-        dl=downloadPDF(link,join(args.out_path,'tmp'))
+        dl=downloadFile(link,join(args.out_path,'tmp'))
         if dl[0] == True:
             filePath=dl[1]
             fileHash=hash(dl[1])

@@ -8,7 +8,7 @@ from ldrwebscraping.alerts import Alert,determineAlert
 from ldrwebscraping.parseHTML import getLinksByExtension
 from ldrwebscraping.download import getPage,downloadFile
 from ldrwebscraping.link import isAbsolute,convertToAbs
-from ldrwebscraping.administration import readFilesSeen
+from ldrwebscraping.administration import readFilesSeen,saneTargetDir
 from ldrwebscraping.handy import hash,countFiles,dirSize
 
 
@@ -31,7 +31,7 @@ def main():
     logger.addHandler(ch)
 
     #Check to be sure the outpath exists, we're writing our log there after all. If it doesn't print to the terminal and exit.
-    if not exists(args.out_path) or not isdir(args.out_path):
+    if not saneTargetDir(args.out_path):
         logger.critical(args.out_path+" doesn't appear to exist, or isn't a directory!")
         logger.critical('Exiting (1)')
         exit(1)
@@ -90,10 +90,7 @@ def main():
         hashPaths.append((filePath,fileHash))
 
     #Read our log of what we've already got (or had) in the directory. Populate another list in memory.
-    filesSeen=[]
-    if exists(args.out_path+"/filesSeen.txt"):
-        logger.info('Reading '+args.out_path+'/filesSeen.txt')
-        filesSeen=readFilesSeen(args.out_path+"/filesSeen.txt")
+    filesSeen=readFilesSeen(args.out_path)
 
     #For all the new stuff...
     for entry in hashPaths:

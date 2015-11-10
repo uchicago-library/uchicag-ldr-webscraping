@@ -13,7 +13,7 @@ from datetime import datetime
 
 from uchicagoldr.bash_cmd import BashCommand
 
-from ldrwebscraping.alerts import Alert
+from ldrwebscraping.alerts import Alert,determineAlert
 from ldrwebscraping.parseHTML import getLinksByExtension
 from ldrwebscraping.download import getPage,downloadFile
 from ldrwebscraping.link import isAbsolute,convertToAbs
@@ -143,40 +143,8 @@ def main():
     logger.debug(rmDirCommand.get_data()[1])
 
     #Lets do some checks to see if we have enough stuff to stage and accession.
-    if args.max_time != None:
-        lineList=[]
-        match=re.compile('^\[INFO\] [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}  \\= Run complete: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
-        if exists(args.out_path+"/log.txt"):
-            for line in open(args.out_path+"/log.txt","r"):
-                lineList.append(line)
-            lineList=reversed(lineList)
-            for line in lineList:
-                    if re.search(match,line):
-                        lastRunLine=line
-                        break
-            lastRunTimeString=lastRunLine.split()[-1]
-            lastRunTime=datetime.strptime(lastRunTimeString,'%Y-%m-%dT%H:%M:%S')
-            now = datetime.strptime(strftime('%Y-%m-%dT%H:%M:%S'),'%Y-%m-%dT%H:%M:%S') 
-            delta=now-lastRunTime
-            if delta.seconds > args.max_time:
-                alert("This should be staged and accessioned!")
-        else:
-            logger.warn("You specified a maximum time constraint but there is no existing log. If this isn't the first run in this containing directory this could mean trouble.")
-    
-    if args.max_files != None:
-        numOfFiles=countFiles(args.out_path)-2
-        logger.info('Number of files in directory: '+str(numOfFiles))
-        if numOfFiles>args.max_files:
-            logger.info('This accession contains more files than the specified maximum! It should be staged!')
-            alert('This should be staged and accessioned!')
-        
-
-    if args.max_size != None:
-        size=dirSize(args.out_path)
-        logger.info('Directory size: '+str(size)+' bytes.')
-        if size > args.max_size:
-            logger.info('This accession is larger than the specified max size! It should be staged!')
-            alert('This should be staged and accessioned!')
+    if determineAlert(args):
+        Alert("Accession me!")
 
     #The run is complete (and seems to have completed succesfully, write as much to the log.
     logger.info("Run complete: "+strftime('%Y-%m-%dT%H:%M:%S'))

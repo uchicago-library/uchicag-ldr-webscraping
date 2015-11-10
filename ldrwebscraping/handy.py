@@ -10,8 +10,10 @@ def hash(filepath,blocksize=65536):
     
 
 def countFiles(path,num=0):
+    from os import listdir
+    from os.path import isdir,isfile,join
     for content in listdir(path):
-        if isfile(content):
+        if isfile(join(path,content)):
             num+=1
     for content in listdir(path):
         if isdir(content):

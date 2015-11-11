@@ -1,6 +1,7 @@
 import argparse
 import feedparser
-from os.path import join
+from os.path import join,basename,isfile
+from json import loads
 from logging import DEBUG, FileHandler, Formatter, getLogger, INFO, StreamHandler
 
 from uchicagoldr.bash_cmd import BashCommand
@@ -50,7 +51,6 @@ def main():
         logger.critical(str(e))
 
     logger.info('Connection established with '+args.url)
-    print(type(feed))
 
     #Make a tmp directory to download everything this go around
     logger.info('Creating tmp subdirectory at: '+join(args.out_path,'tmp'))
@@ -91,6 +91,23 @@ def main():
     assert(rmDirCommand.run_command()[1])
     logger.debug(rmDirCommand.get_data()[1])
 
+    #Build/append to an index for each file we just moved
+    if len(moved)>0:
+        logger.info("Building Index for moved files")
+        with open(args.out_path+"/index.txt",'a') as f:
+            movedArticles=[x for x in moved if '.json' in x[0]]
+            for  article in movedArticles:
+                newLocation=args.out_path+"/"+basename(article[0])
+                if not isfile(newLocation):
+                    logger.warn("Can't add "+article[0]+" to the index, it doesn't appear to exist in the directory where it should.")
+                    continue
+                articleDict=loads("\n".join(line for line in open(newLocation,'r').readlines()))
+                title=""
+                try:
+                    title=articleDict['title']
+                except KeyError:
+                    logger.warn("Can't find an article title in "+article[0])
+                f.write(basename(newLocation)+'\t'+title+'\n')
     #Lets do some checks to see if we have enough stuff to stage and accession.
     if determineAlert(args):
         Alert("Accession me!")

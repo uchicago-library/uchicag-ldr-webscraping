@@ -10,22 +10,23 @@ def getPage(url,iteration=0):
             getPage(url,iteration=iteration)
         return (False,request)
 
-def downloadFile(link,outPath,suffix=""):
+def downloadFile(link,outPath,suffix="",prefix="",filename=None):
     from os.path import basename,exists
     from ldrwebscraping.handy import genRandID
-    filename=basename(link)
+    if filename == None:
+        filename=basename(link)
     page=getPage(link)
     noClobber=False
     if page[0] != True:
         return (False,None,noClobber)
     else:
-        while exists(outPath+"/"+filename+suffix):
+        while exists(outPath+"/"+prefix+filename+suffix):
             suffix=genRandID()
             noClobber=suffix
-        with open(outPath+"/"+filename+suffix,'wb') as f:
+        with open(outPath+"/"+prefix+filename+suffix,'wb') as f:
             for chunk in page[1].iter_content(1024):
                 f.write(chunk)
-                return (True,outPath+"/"+filename+suffix,noClobber)
+                return (True,outPath+"/"+prefix+filename+suffix,noClobber)
 
 def tmpDownloadAndHash(links,out_path):
     from uchicagoldr.bash_cmd  import BashCommand
@@ -43,7 +44,6 @@ def tmpDownloadAndHash(links,out_path):
                     rmArgs=['rm',filePath]
                     rmCommand=BashCommand(rmArgs)
                     assert(rmCommand.run_command()[0])
-                    logger.debug(rmCommand.get_data()[1])
                     continue
         else:
             filePath=None
@@ -61,12 +61,42 @@ def tmpDownloadAndHashRSS(feed,out_path):
     hashPaths=[]
     tmpDir=join(out_path,'tmp')
     for entry in feed['entries']:
-        outfilename=genRandID()+'.json'
+        outfilename=genRandID()
         while exists(out_path+"/"+outfilename) or exists(tmpDir+"/"+outfilename):
-            outfilename=genRandID()+'.json'
-        with open(tmpDir+"/"+outfilename,'w') as f:
+            outfilename=genRandID()
+        with open(tmpDir+"/"+outfilename+'.json','w') as f:
             f.write(dumps(entry,indent=4,sort_keys=True))
-        filePath=tmpDir+"/"+outfilename
+        filePath=tmpDir+"/"+outfilename+'.json'
         fileHash=hash(filePath)
         hashPaths.append((filePath,fileHash))
+
+        if 'link' in entry:
+            seenLink=False
+            dl=downloadFile(entry['link'],tmpDir,prefix=outfilename)
+            if dl[0] == True:
+                linkfilePath=dl[1]
+                linkfileHash=hash(dl[1])
+        
+                if dl[2] != False:
+                    if linkfileHash in [x[1] for x in hashPaths]:
+                        seenLink=True
+                        rmArgs=['rm',linkfilePath]
+                        rmCommand=BashCommand(rmArgs)
+                        assert(rmCommand.run_command()[0])
+                        continue
+            else:
+                linkfilePath=None
+                linkfileHash=None
+            hashPaths.append((linkfilePath,linkfileHash))
+            if not seenLink:
+                try:
+                    wkhtmltopdfArgs=['wkhtmltopdf',entry['link'],tmpDir+"/"+outfilename+".pdf"]
+                    wkhtmltopdfCommand=BashCommand(wkhtmltopdfArgs)
+                    wkhtmltopdfCommand.run_command()
+                except:
+                    pass
+                if exists(tmpDir+"/"+outfilename+'.pdf'):
+                    pdfFilePath=tmpDir+"/"+outfilename+'.pdf'
+                    pdfFileHash=hash(pdfFilePath)
+                    hashPaths.append((pdfFilePath,pdfFileHash)) 
     return hashPaths

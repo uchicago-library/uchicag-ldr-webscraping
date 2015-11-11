@@ -51,7 +51,7 @@ def tmpDownloadAndHash(links,out_path):
         hashPaths.append((filePath,fileHash))
     return hashPaths
 
-def tmpDownloadAndHashRSS(feed,out_path):
+def tmpDownloadAndHashRSS(feed,out_path,filesSeen=[]):
     from os.path import join,exists
     from json import dumps
 
@@ -76,6 +76,8 @@ def tmpDownloadAndHashRSS(feed,out_path):
             if dl[0] == True:
                 linkfilePath=dl[1]
                 linkfileHash=hash(dl[1])
+                if linkfileHash in filesSeen:
+                    seenLink=True
         
                 if dl[2] != False:
                     if linkfileHash in [x[1] for x in hashPaths]:

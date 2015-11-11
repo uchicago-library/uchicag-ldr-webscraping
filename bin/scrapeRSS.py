@@ -59,20 +59,21 @@ def main():
     assert(mkdirCommand.run_command()[0])
     logger.debug(mkdirCommand.get_data()[1])
 
-    #Download and hash everything we can into the tmp directory. Keep the hashes and filepaths handy in RAM.
-    logger.info('Downloading files into the tmp directory for hashing and comparison.')
-    hashPaths=tmpDownloadAndHashRSS(feed,args.out_path)
-    logger.info('Downloaded '+str(len(hashPaths))+' files.')
-    for entry in hashPaths:
-        logger.debug('Downloaded file: '+entry[0])
-        logger.debug('File hash: '+entry[1])
-
     #Read our log of what we've already got (or had) in the directory. Populate another list in memory.
     logger.info("Reading filesSeen.txt.")
     filesSeen=readFilesSeen(args.out_path)
     logger.debug("Found "+str(len(filesSeen))+" entries in filesSeen.txt")
     for entry in filesSeen:
         logger.debug(entry)
+
+    #Download and hash everything we can into the tmp directory. Keep the hashes and filepaths handy in RAM.
+    logger.info('Downloading files into the tmp directory for hashing and comparison.')
+    hashPaths=tmpDownloadAndHashRSS(feed,args.out_path,filesSeen=filesSeen)
+    logger.info('Downloaded '+str(len(hashPaths))+' files.')
+    for entry in hashPaths:
+        logger.debug('Downloaded file: '+entry[0])
+        logger.debug('File hash: '+entry[1])
+
 
     logger.info('Sorting the contents of the temp directory.')
     moved,removed=sortTemp(hashPaths,filesSeen,args.out_path)

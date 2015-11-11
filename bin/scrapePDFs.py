@@ -1,14 +1,14 @@
 import argparse
-from os.path import exists,isdir,join,basename
+from os.path import join
 from logging import DEBUG, FileHandler, Formatter, getLogger, INFO, StreamHandler
 
 from uchicagoldr.bash_cmd import BashCommand
 
 from ldrwebscraping.alerts import Alert,determineAlert
 from ldrwebscraping.parseHTML import getLinksByExtension
-from ldrwebscraping.download import getPage,downloadFile
+from ldrwebscraping.download import getPage,tmpDownloadAndHash
 from ldrwebscraping.link import isAbsolute,convertToAbs
-from ldrwebscraping.administration import readFilesSeen,saneTargetDir
+from ldrwebscraping.administration import readFilesSeen,saneTargetDir,sortTemp,appendToFilesSeen
 from ldrwebscraping.handy import hash,countFiles,dirSize
 
 
@@ -56,75 +56,44 @@ def main():
     #Pull out the links and resolve them to what should *hopefully* be their absolute web-path
     links=getLinksByExtension(page,'pdf')
     links=convertToAbs(args.url,links)
+    logger.info('Identified '+str(len(links))+' unique links in the page.')
+    for entry in links:
+        logger.debug(entry)
 
     #Make a tmp directory to download everything this go around
-    logger.debug('Creating tmp subdirectory at: '+join(args.out_path,'tmp'))
+    logger.info('Creating tmp subdirectory at: '+join(args.out_path,'tmp'))
     mkdirArgs=['mkdir',join(args.out_path,'tmp')]
     mkdirCommand=BashCommand(mkdirArgs)
     assert(mkdirCommand.run_command()[0])
     logger.debug(mkdirCommand.get_data()[1])
 
     #Download and hash everything we can into the tmp directory. Keep the hashes and filepaths handy in RAM.
-    hashPaths=[]
-    for link in links:
-        logger.info('Downloading '+link+' to '+join(args.out_path,'tmp')+' and hashing.')
-        dl=downloadFile(link,join(args.out_path,'tmp'))
-        if dl[0] == True:
-            filePath=dl[1]
-            fileHash=hash(dl[1])
-        
-            if dl[2] != False:
-                logger.info('Download function appended an id ('+dl[2]+') in order not to clobber something in the temp directory. Lets check to see if we already have it.')
-                if fileHash in [x[1] for x in hashPaths]:
-                    logger.info('We do, deleting')
-                    rmArgs=['rm',filePath]
-                    rmCommand=BashCommand(rmArgs)
-                    assert(rmCommand.run_command()[0])
-                    logger.debug(rmCommand.get_data()[1])
-                    continue
-                else:
-                    logger.info('We don\'t, keeping it.')
-        else:
-            filePath=None
-            fileHash=None
-        hashPaths.append((filePath,fileHash))
+    logger.info('Downloading files into the tmp directory for hashing and comparison.')
+    hashPaths=tmpDownloadAndHash(links,args.out_path)
+    logger.info('Downloaded '+str(len(hashPaths))+' files.')
+    for entry in hashPaths:
+        logger.debug('Downloaded file: '+entry[0])
+        logger.debug('File hash: '+entry[1])
 
     #Read our log of what we've already got (or had) in the directory. Populate another list in memory.
+    logger.info("Reading filesSeen.txt.")
     filesSeen=readFilesSeen(args.out_path)
+    logger.debug("Found "+str(len(filesSeen))+" entries in filesSeen.txt")
+    for entry in filesSeen:
+        logger.debug(entry)
 
-    #For all the new stuff...
-    for entry in hashPaths:
-        #If we haven't seen it before...
-        if entry[1] not in filesSeen:
-            logger.info('New File: '+entry[1])
-            #Move the file into the primary directory, not clobbering, add them to filesSeen, because we've seen them now.
-            if not exists(args.out_path+'/'+basename(entry[0])):
-                mvArgs=['mv',entry[0],args.out_path]
-            else:
-                logger.info('File with a new hash conflicts with an existing filename. Appending the current date string.')
-                mvArgs=['mv',entry[0],args.out_path+'/'+basename(entry[0])+"."+strftime('%Y%m%d%H%M%S')+'.pdf']
-                pass
-            mvCommand=BashCommand(mvArgs)
-            assert(mvCommand.run_command()[0])
-            logger.debug(mvCommand.get_data()[1])
-                
-            with open(args.out_path+"/filesSeen.txt",'a') as f:
-                f.write(entry[0]+'\t'+entry[1]+'\n')
-        #If we haven't seen it before...
-        elif entry[1] in filesSeen:
-            #Delete the file, its of no use to us because a copy already exists (or did exist) in the parent directory.
-            logger.info("Previously seen file: "+entry[1]+". Removing.")
-            rmArgs=['rm',entry[0]]
-            rmCommand=BashCommand(rmArgs)
-            assert(rmCommand.run_command()[0])
-            logger.debug(rmCommand.get_data()[1])
-        else:
-            #Sometimes you just really want to be sure you didn't miss anything
-            logger.critical('This shouldn\'t ever run. Universe broken.')
-            logger.critical('Exiting (1)')
-            exit(1)
+    logger.info('Sorting the contents of the temp directory.')
+    moved,removed=sortTemp(hashPaths,filesSeen,args.out_path)
+    logger.info(str(len(moved))+" new files found.")
+    for entry in moved:
+        logger.debug('SAVED: '+" ".join(entry))
+    for entry in removed:
+        logger.debug('REMOVED: '+" ".join(entry))
+
+    assert(appendToFilesSeen(args.out_path,moved)==True)
 
     #We should have either moved everything in the tmp directory into the parent directory or deleted it now, so remove the tmp directory.
+    logger.info("Removing temp directory.")
     rmDirArgs=['rmdir',join(args.out_path,'tmp')]
     rmDirCommand=BashCommand(rmDirArgs)
     assert(rmDirCommand.run_command()[1])

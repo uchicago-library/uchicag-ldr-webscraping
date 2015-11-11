@@ -50,3 +50,23 @@ def tmpDownloadAndHash(links,out_path):
             fileHash=None
         hashPaths.append((filePath,fileHash))
     return hashPaths
+
+def tmpDownloadAndHashRSS(feed,out_path):
+    from os.path import join,exists
+    from json import dumps
+
+    from uchicagoldr.bash_cmd  import BashCommand
+    from ldrwebscraping.handy import hash,genRandID
+
+    hashPaths=[]
+    tmpDir=join(out_path,'tmp')
+    for entry in feed['entries']:
+        outfilename=genRandID()+'.json'
+        while exists(out_path+"/"+outfilename) or exists(tmpDir+"/"+outfilename):
+            outfilename=genRandID()+'.json'
+        with open(tmpDir+"/"+outfilename,'w') as f:
+            f.write(dumps(entry,indent=4,sort_keys=True))
+        filePath=tmpDir+"/"+outfilename
+        fileHash=hash(filePath)
+        hashPaths.append((filePath,fileHash))
+    return hashPaths

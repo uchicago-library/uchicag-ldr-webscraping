@@ -51,7 +51,7 @@ def tmpDownloadAndHash(links,out_path):
         hashPaths.append((filePath,fileHash))
     return hashPaths
 
-def tmpDownloadAndHashRSS(feed,out_path,filesSeen=[]):
+def tmpDownloadAndHashRSS(feed,out_path,filesSeen=[],dlLinks=False,dlPDFs=False):
     from os.path import join,exists
     from json import dumps
 
@@ -70,7 +70,7 @@ def tmpDownloadAndHashRSS(feed,out_path,filesSeen=[]):
         fileHash=hash(filePath)
         hashPaths.append((filePath,fileHash))
 
-        if 'link' in entry:
+        if 'link' in entry and dlLinks:
             seenLink=False
             dl=downloadFile(entry['link'],tmpDir,prefix=outfilename)
             if dl[0] == True:
@@ -90,7 +90,7 @@ def tmpDownloadAndHashRSS(feed,out_path,filesSeen=[]):
                 linkfilePath=None
                 linkfileHash=None
             hashPaths.append((linkfilePath,linkfileHash))
-            if not seenLink:
+            if not seenLink and dlPDFs:
                 try:
                     wkhtmltopdfArgs=['wkhtmltopdf',entry['link'],tmpDir+"/"+outfilename+".pdf"]
                     wkhtmltopdfCommand=BashCommand(wkhtmltopdfArgs)

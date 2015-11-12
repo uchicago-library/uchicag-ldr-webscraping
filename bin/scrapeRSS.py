@@ -19,6 +19,8 @@ def main():
     parser.add_argument('-t','--max-time',type=int,default=None,help='The maximum amount of time in seconds that should be able to occur between runs before the Accessioning Specialist is notified to stage the directory contents.')
     parser.add_argument('-n','--max-files',type=int,default=None,help='The maximum number of files in the directory that should be able to accumulate between runs before the Accessioning Specialist is notified to stage the directory contents.')
     parser.add_argument('-s','--max-size',type=int,default=None,help='The maximum filesize in bytes the directory that should be able to accumulate between runs before the Accessioning Specialist is notified to stage the directory contents.')
+    parser.add_argument('--download-links',default=False,action='store_true',help='Set whether or not to download the links article RSS entries point to.')
+    parser.add_argument('--download-pdfs',default=False,action='store_true',help='Assuming --download links is set to True. Set whether or not to create PDFs of the pages which links point to.')
     args=parser.parse_args()
 
     log_format=Formatter("[%(levelname)s] %(asctime)s  = %(message)s",datefmt="%Y-%m-%dT%H:%M:%S")
@@ -68,7 +70,7 @@ def main():
 
     #Download and hash everything we can into the tmp directory. Keep the hashes and filepaths handy in RAM.
     logger.info('Downloading files into the tmp directory for hashing and comparison.')
-    hashPaths=tmpDownloadAndHashRSS(feed,args.out_path,filesSeen=filesSeen)
+    hashPaths=tmpDownloadAndHashRSS(feed,args.out_path,filesSeen=filesSeen,dlLinks=args.download_links,dlPDFs=args.download_pdfs)
     logger.info('Downloaded '+str(len(hashPaths))+' files.')
     for entry in hashPaths:
         logger.debug('Downloaded file: '+entry[0])

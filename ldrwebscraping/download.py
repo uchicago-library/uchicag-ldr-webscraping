@@ -25,8 +25,9 @@ def downloadFile(link,outPath,suffix="",prefix="",filename=None):
             noClobber=suffix
         with open(outPath+"/"+prefix+filename+suffix,'wb') as f:
             for chunk in page[1].iter_content(1024):
-                f.write(chunk)
-                return (True,outPath+"/"+prefix+filename+suffix,noClobber)
+                if chunk:
+                    f.write(chunk)
+    return (True,outPath+"/"+prefix+filename+suffix,noClobber)
 
 def tmpDownloadAndHash(links,out_path):
     from uchicagoldr.bash_cmd  import BashCommand
